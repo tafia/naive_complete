@@ -12,8 +12,6 @@ use std::fs::File;
 use regex::Regex;
 use std::str::from_utf8;
 
-// static REGEX_START: Regex = regex!(r"^\s*");
-
 static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl))");
 static REGEX_FN: Regex = regex!(r"(?:pub\s+)?(?:unsafe\s+)?fn\s+(\w+)(?:.*->\s*(\w+))?");
 static REGEX_USE: Regex = regex!(r"use\s+((?:\w+::)*)\{?((?:\s*(?:\*|\w+)\s*,?)+)\}?\s*;");
@@ -115,11 +113,9 @@ impl SearchIter {
 		debug!("extended pos: {}", self.pos);
 		let m = if let Some(caps) = REGEX_FN.captures(&self.buf) {
 			
-			// name
 			let (start, end) = caps.pos(1).unwrap();
 			let mut pos = self.pos - self.buf.len();
 			pos += start;
-
 			let name = Token {
 				name: self.buf[start..end].to_string(),
 				pos: pos
@@ -134,12 +130,10 @@ impl SearchIter {
 						pos: pos				
 					}
 				}, 
-				None => {
-					Token {
+				None => Token {
 						name: String::new(),
 						pos: pos				
 					}
-				}
 			};
 			Some(Searcheable::Fn((name, typ)))
 		} else {
@@ -158,21 +152,15 @@ impl SearchIter {
 			
 			// members
 			let members_str = caps.at(1).unwrap();
-
 			let members = if members_str.len() > 2 { 
 				members_str[..members_str.len()-2].split("::")
 				.map(|s| s.to_string()).collect::<Vec<_>>()
-			} else {
-				Vec::new()
-			};
-
+			} else { Vec::new() };
 			debug!("members: {:?}", members);
 
 			let (start, end) = caps.pos(2).unwrap();
 			let mut pos = self.pos - self.buf.len();
 			pos += start;
-
-			// set the output
 			Some(Searcheable::Use((members, 
 					self.buf[start..end].split(",").map(|s| Token{
 					name:s.trim().to_string(),
@@ -181,6 +169,7 @@ impl SearchIter {
 		} else {
 			None
 		};
+		
 		self.buf.clear();
 		m
 	}
@@ -195,26 +184,18 @@ impl SearchIter {
 		}
 
 		debug!("buf struct: {}", self.buf);
-		let m = {
-			let caps = REGEX_STRUCT.captures(&self.buf).unwrap();
-			
-			// found a match !
+		let m = if let Some(caps) = REGEX_STRUCT.captures(&self.buf) {
+		
 			let (start, end) = caps.pos(1).unwrap();
 			let pos = self.pos - self.buf.len() + start;
-
 			match caps.at(2) {
 				Some("{") => {					
 					debug!("struct has a {{: {}", self.buf);
 					if !self.buf.contains('}') { self.skip = Some((b'{', b'}')); }
 				}
-				// Some("(") => {					
-				// 	debug!("struct has a (");
-				// 	if !self.buf.contains(';') {self.skip = Some((0, b';')); }
-				// }
-				_ => {}
+				_ => {} // TODO: manage each alternatives
 			}
 
-			// set the output
 			Some(Searcheable::StructEnum(Token{
 				name: self.buf[start..end].to_string(),
 				pos: pos
