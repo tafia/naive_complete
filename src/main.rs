@@ -149,8 +149,6 @@ impl SearchIter {
 		if !self.extend_until(b';') { return None; }
 
 		let m = if let Some(caps) = REGEX_USE.captures(&self.buf) {
-			
-			// members
 			let members_str = caps.at(1).unwrap();
 			let members = if members_str.len() > 2 { 
 				members_str[..members_str.len()-2].split("::")
@@ -185,7 +183,6 @@ impl SearchIter {
 
 		debug!("buf struct: {}", self.buf);
 		let m = if let Some(caps) = REGEX_STRUCT.captures(&self.buf) {
-		
 			let (start, end) = caps.pos(1).unwrap();
 			let pos = self.pos - self.buf.len() + start;
 			match caps.at(2) {
@@ -195,11 +192,12 @@ impl SearchIter {
 				}
 				_ => {} // TODO: manage each alternatives
 			}
-
 			Some(Searcheable::StructEnum(Token{
 				name: self.buf[start..end].to_string(),
 				pos: pos
 			}))
+		} else {
+			None
 		};
 
 		self.buf.clear();
