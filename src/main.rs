@@ -15,7 +15,8 @@ use std::str::from_utf8;
 static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl))");
 static REGEX_FN: Regex = regex!(r"(?:pub\s+)?(?:unsafe\s+)?fn\s+(\w+)(?:.*->\s*(\w+))?");
 static REGEX_USE: Regex = regex!(r"use\s+((?:\w+::)*)\{?((?:\s*(?:\*|\w+)\s*,?)+)\}?\s*;");
-static REGEX_STRUCT: Regex = regex!(r"(?:pub\s+)?(?:enum|struct)\s+(\w+)(?:\s*<(?:\s*'?\w+\s*,?)+>)?\s*(;|\(|\{)");
+static REGEX_STRUCT: Regex = regex!(r"(?:pub\s+)?(?:enum|struct)\s+(\w+).*(;|\{)");
+static REGEX_IMPL: Regex = regex!(r"impl(?:\s*<.*>)?\s+(?:(\w+).*\sfor\s+)?(&?\w+)");
 
 #[derive(Debug,Clone,PartialEq)]
 struct Token {
@@ -25,10 +26,10 @@ struct Token {
 
 #[derive(Debug,Clone,PartialEq)]
 enum Searcheable {
-    Fn((Token, Token)),							// (name, return type)
+    Fn(Token, Token),							// (name, return type)
     Impl(Token, Token, Vec<(Token, Token)>),	// trait, struct, fns
     StructEnum(Token),
-    Use((Vec<String>, Vec<Token>))				// (path, uses)
+    Use(Vec<String>, Vec<Token>)				// (path, uses)
 }
 
 struct SearchIter {
@@ -114,28 +115,26 @@ impl SearchIter {
 		let m = if let Some(caps) = REGEX_FN.captures(&self.buf) {
 			
 			let (start, end) = caps.pos(1).unwrap();
-			let mut pos = self.pos - self.buf.len();
-			pos += start;
+
+			let buf_start = self.pos - self.buf.len();
 			let name = Token {
 				name: self.buf[start..end].to_string(),
-				pos: pos
+				pos: buf_start + start
 			};
 
 			let typ = match caps.pos(2) {
-				Some((start, end)) => {					
-					pos = self.pos - self.buf.len();
-					pos += start;
+				Some((start, end)) => {
 					Token {
 						name: self.buf[start..end].to_string(),
-						pos: pos				
+						pos: buf_start + start		
 					}
 				}, 
 				None => Token {
 						name: String::new(),
-						pos: pos				
+						pos: buf_start + start	
 					}
 			};
-			Some(Searcheable::Fn((name, typ)))
+			Some(Searcheable::Fn(name, typ))
 		} else {
 			None
 		};
@@ -159,11 +158,11 @@ impl SearchIter {
 			let (start, end) = caps.pos(2).unwrap();
 			let mut pos = self.pos - self.buf.len();
 			pos += start;
-			Some(Searcheable::Use((members, 
+			Some(Searcheable::Use(members, 
 					self.buf[start..end].split(",").map(|s| Token{
 					name:s.trim().to_string(),
 					pos: pos
-				}).collect())))
+				}).collect()))
 		} else {
 			None
 		};
@@ -204,6 +203,43 @@ impl SearchIter {
 		m
 	}
 
+	fn match_impl(&mut self) -> Option<Searcheable> {
+
+		debug!("match impl, pos: {}, buf: {}", self.pos, self.buf);
+		let m = if let Some(caps) = REGEX_IMPL.captures(&self.buf) {
+
+
+			debug!("found impl captures");
+			let buf_start = self.pos - self.buf.len();
+			
+			let trait_part = match caps.pos(1) {
+				Some((start, end)) => {
+					Token {
+						name: self.buf[start..end].to_string(),
+						pos: buf_start + start				
+					}
+				}, 
+				None => Token {
+						name: String::new(),
+						pos: buf_start		
+					}
+			};
+
+			let (start, end) = caps.pos(2).unwrap();
+			let struct_part = Token {
+				name: self.buf[start..end].to_string(),
+				pos: buf_start + start
+			};
+
+			Some(Searcheable::Impl(trait_part, struct_part, Vec::new()))
+		} else {
+			None
+		};
+		self.buf.clear();
+		self.skip = Some((b'{', b'}'));
+		m
+	}
+
 }
 
 impl Iterator for SearchIter {
@@ -219,7 +255,7 @@ impl Iterator for SearchIter {
 					match name {
 						"use" 		=> return self.match_use(),
 						"struct" 	=> return self.match_struct_or_enum(),
-						"impl" 		=> debug!("impl"),
+						"impl" 		=> return self.match_impl(),
 						"fn" 		=> return self.match_fn(),
 						"unused" 	=> debug!("unused"),
 						_ 			=> debug!("{:?}", name)
@@ -249,7 +285,7 @@ fn main() {
     	2 => {
     		let mut iter = SearchIter::open(&args[0]).unwrap();
     		let m = iter.find(|ref m| {
-				if let Searcheable::Fn((ref name, _)) = **m {
+				if let Searcheable::Fn(ref name, _) = **m {
 					if name.name == args[1] { return true; }
 				}
 				false
