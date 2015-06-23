@@ -12,7 +12,7 @@ use std::fs::File;
 use regex::Regex;
 use std::str::from_utf8;
 
-static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl))");
+static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl)|(?P<const>(?:pub\s+)?(?:const|static)))");
 static REGEX_FN: Regex = regex!(r"(?:pub\s+)?(?:unsafe\s+)?fn\s+(\w+)(?:.*->\s*(\w+))?");
 static REGEX_USE: Regex = regex!(r"use\s+((?:\w+::)*)\{?((?:\s*(?:\*|\w+)\s*,?)+)\}?\s*;");
 static REGEX_STRUCT: Regex = regex!(r"(?:pub\s+)?(?:enum|struct)\s+(\w+).*(;|\{)");
@@ -257,6 +257,7 @@ impl Iterator for SearchIter {
 						"struct" 	=> return self.match_struct_or_enum(),
 						"impl" 		=> return self.match_impl(),
 						"fn" 		=> return self.match_fn(),
+						"const"		=> debug!("const"),
 						"unused" 	=> debug!("unused"),
 						_ 			=> debug!("{:?}", name)
 					}
