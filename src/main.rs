@@ -12,12 +12,13 @@ use std::fs::File;
 use regex::Regex;
 use std::str::from_utf8;
 
-static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl)|(?P<const>(?:pub\s+)?(?:const|static)))");
+static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl)|(?P<const>(?:pub\s+)?(?:const|static))|(?P<trait>(?:pub\s+)?trait))");
 static REGEX_FN: Regex = regex!(r"(?:pub\s+)?(?:unsafe\s+)?fn\s+(\w+)(?:.*->\s*(\w+))?");
 static REGEX_USE: Regex = regex!(r"use\s+((?:\w+::)*)\{?((?:\s*(?:\*|\w+)\s*,?)+)\}?\s*;");
 static REGEX_STRUCT: Regex = regex!(r"(?:pub\s+)?(?:enum|struct)\s+(\w+).*(;|\{)");
 static REGEX_IMPL: Regex = regex!(r"impl(?:\s*<.*>)?\s+(?:(\w+).*\sfor\s+)?(&?\w+)");
 static REGEX_CONST: Regex = regex!(r"(?:pub\s+)?(?:static|const)\s+(\w+)\s*:.*(\w+)");
+static REGEX_TRAIT: Regex = regex!(r"(?:pub\s+)?trait\s+(\w+)");
 
 #[derive(Debug,Clone,PartialEq)]
 struct Token {
@@ -31,7 +32,8 @@ enum Searcheable {
     Impl(Token, Token, Vec<(Token, Token)>),	// trait, struct, fns
     StructEnum(Token),
     Use(Vec<String>, Vec<Token>),				// (path, uses)
-    Const(Token, Token)							// name, type
+    Const(Token, Token),							// name, type
+    Trait(Token)								// name
 }
 
 struct SearchIter {
@@ -210,8 +212,6 @@ impl SearchIter {
 		debug!("match impl, pos: {}, buf: {}", self.pos, self.buf);
 		let m = if let Some(caps) = REGEX_IMPL.captures(&self.buf) {
 
-
-			debug!("found impl captures");
 			let buf_start = self.pos - self.buf.len();
 			
 			let trait_part = match caps.pos(1) {
@@ -270,6 +270,26 @@ impl SearchIter {
 		m
 	}
 
+	fn match_trait(&mut self) -> Option<Searcheable> {
+
+		let m = if let Some(caps) = REGEX_TRAIT.captures(&self.buf) {
+			
+			let (start, end) = caps.pos(1).unwrap();
+
+			let buf_start = self.pos - self.buf.len();
+			let name = Token {
+				name: self.buf[start..end].to_string(),
+				pos: buf_start + start
+			};
+			Some(Searcheable::Trait(name))
+		} else {
+			None
+		};
+		self.buf.clear();
+		self.skip = Some((b'{', b'}'));
+		m
+	}
+
 }
 
 impl Iterator for SearchIter {
@@ -288,6 +308,7 @@ impl Iterator for SearchIter {
 						"impl" 		=> return self.match_impl(),
 						"fn" 		=> return self.match_fn(),
 						"const"		=> return self.match_const(),
+						"trait"		=> return self.match_trait(),
 						"unused" 	=> debug!("unused"),
 						_ 			=> debug!("{:?}", name)
 					}
