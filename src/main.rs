@@ -17,6 +17,7 @@ static REGEX_FN: Regex = regex!(r"(?:pub\s+)?(?:unsafe\s+)?fn\s+(\w+)(?:.*->\s*(
 static REGEX_USE: Regex = regex!(r"use\s+((?:\w+::)*)\{?((?:\s*(?:\*|\w+)\s*,?)+)\}?\s*;");
 static REGEX_STRUCT: Regex = regex!(r"(?:pub\s+)?(?:enum|struct)\s+(\w+).*(;|\{)");
 static REGEX_IMPL: Regex = regex!(r"impl(?:\s*<.*>)?\s+(?:(\w+).*\sfor\s+)?(&?\w+)");
+static REGEX_CONST: Regex = regex!(r"(?:pub\s+)?(?:static|const)\s+(\w+)\s*:.*(\w+)");
 
 #[derive(Debug,Clone,PartialEq)]
 struct Token {
@@ -29,7 +30,8 @@ enum Searcheable {
     Fn(Token, Token),							// (name, return type)
     Impl(Token, Token, Vec<(Token, Token)>),	// trait, struct, fns
     StructEnum(Token),
-    Use(Vec<String>, Vec<Token>)				// (path, uses)
+    Use(Vec<String>, Vec<Token>),				// (path, uses)
+    Const(Token, Token)							// name, type
 }
 
 struct SearchIter {
@@ -240,6 +242,34 @@ impl SearchIter {
 		m
 	}
 
+	fn match_const(&mut self) -> Option<Searcheable> {
+
+		if !self.extend_until(b';') { return None; }
+
+		let m = if let Some(caps) = REGEX_CONST.captures(&self.buf) {
+			let buf_start = self.pos - self.buf.len();
+
+			let (start, end) = caps.pos(1).unwrap();
+			let const_name = Token { 
+				name: self.buf[start..end].to_string(),
+				pos: buf_start + start
+			};
+
+			let (start, end) = caps.pos(2).unwrap();
+			let const_type = Token { 
+				name: self.buf[start..end].to_string(),
+				pos: buf_start + start
+			};
+
+			Some(Searcheable::Const(const_name, const_type))
+		} else {
+			None
+		};
+		
+		self.buf.clear();
+		m
+	}
+
 }
 
 impl Iterator for SearchIter {
@@ -257,7 +287,7 @@ impl Iterator for SearchIter {
 						"struct" 	=> return self.match_struct_or_enum(),
 						"impl" 		=> return self.match_impl(),
 						"fn" 		=> return self.match_fn(),
-						"const"		=> debug!("const"),
+						"const"		=> return self.match_const(),
 						"unused" 	=> debug!("unused"),
 						_ 			=> debug!("{:?}", name)
 					}
