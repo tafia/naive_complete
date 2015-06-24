@@ -20,7 +20,7 @@ As of now, I foresee 4 modules
 - the brain
   - work as an Arena and store/digest outputs from the 3 other modules
   - as lazy as possible, responsible for type-check/search
-  - should probably guarantee any file is parsed once only
+  - should probably allow any file to be parsed once only
   - not implemented
 - *File* Parser iterator:
   - take a file path as input and provides an iterator over items relevant for the autocompletion
@@ -40,3 +40,9 @@ As of now, I foresee 4 modules
   - defined by `use` statements, `extern crate` (including prelude) ...
   - can discover from cargo files
   - not implemented
+
+## Todo
+
+- Implement the 3 missing modules
+- Add tests + eventually benchmarks
+- Add additional properties to skip some parsing in file parser (local, static fns in particular)
