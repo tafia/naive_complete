@@ -1,15 +1,19 @@
 # naive_complete
 
-This project (name may change) aims at providing a fast, **simple** autocompletion tool for [rust](http://www.rust-lang.org/).
+This project (name may change) aims at providing a fast, **simple**
+autocompletion tool for [rust](http://www.rust-lang.org/).
 
 ## Principles
 
-This is a very naive (simple and understandable) attempt and does not plan to compete with better tools such as [racer](https://github.com/phildawes/racer). 
+This is a very naive (simple and understandable) attempt and does not plan to
+compete with better tools such as [racer](https://github.com/phildawes/racer).
 Main guidelines:
 - **iterator**: to allow very lazy `find-definition`
-- **regexes**: while perhaps not best in class in terms of performance, drastically reduces code complexity
-- **not exact**: this project will probably *never* rely on the rustc compiler. 
-  In particular there may be some special corner cases never implemented. It's totally fine as long as *most* work 
+- **regexes**: while perhaps not best in class in terms of performance,
+drastically reduces code complexity
+- **not exact**: this project will probably *never* rely on the rustc compiler.
+  In particular there may be some special corner cases never implemented.
+  It's totally fine as long as *most* work
   (ie it is good enough to be used as a autocomplete tool)
 
 Eventually it'll at least provide benchmarks to compare with.
@@ -23,14 +27,16 @@ As of now, I foresee 4 modules
   - should probably allow any file to be parsed once only
   - not implemented
 - *File* Parser iterator:
-  - take a file path as input and provides an iterator over items relevant for the autocompletion
-  - in particular, do/may not parse 
+  - take a file path as input and provides an iterator over items relevant for
+  the autocompletion
+  - in particular, do/may not parse
     - comments, attributes (`#[...]`)
-    - `fn` bodies, 
+    - `fn` bodies,
     - `impl` bodies (depends if relevant or not)
     - non-`pub` items if looking for an external file
   - there is already a good-enough-to-start version with the [`SearchIter`](https://github.com/tafia/naive_complete/blob/master/src/main.rs#L39-L44)
-  - can probably be extended to work with any stream as it is based on a `BufReader` ... so there is no need to *write* a temporary file
+  - can probably be extended to work with any stream as it is based on a
+  `BufReader` ... so there is no need to *write* a temporary file
 - *Function* Parser iterator:
   - there will be at maximum ONE function body parsed (the one currently in scope)
   - provide an iterator over fn variables
@@ -45,4 +51,5 @@ As of now, I foresee 4 modules
 
 - Implement the 3 missing modules
 - Add tests + eventually benchmarks
-- Add additional properties to skip some parsing in file parser (local, static fns in particular)
+- Add additional properties to skip some parsing in file parser (local,
+  static fns in particular)

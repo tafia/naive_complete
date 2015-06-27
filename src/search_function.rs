@@ -7,8 +7,8 @@ static REGEX_LET: Regex = regex!(r"(?:if\s+)?let\s+(\w+)\s+=");
 
 #[derive(Debug,Clone,PartialEq)]
 struct Token {
-	name: String,  	// match name
-	pos: usize 		// position in the file
+    name: String,      // match name
+    pos: usize         // position in the file
 }
 
 struct SearchFnIter {
