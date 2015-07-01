@@ -13,6 +13,12 @@ mod search_file;
 use search_file::SearchIter;
 use search_file::Searcheable;
 
+#[derive(Debug,Clone,PartialEq)]
+pub struct Token {
+    pub name: String,      // match name
+    pub pos: usize         // position in the file
+}
+
 fn main() {
 
     env_logger::init().unwrap();
