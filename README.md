@@ -26,7 +26,7 @@ As of now, I foresee 4 modules
   - as lazy as possible, responsible for type-check/search
   - should probably allow any file to be parsed once only
   - not implemented
-- *File* Parser iterator:
+- [*File* Parser iterator](https://github.com/tafia/naive_complete/blob/master/src/file_parser.rs):
   - take a file path as input and provides an iterator over items relevant for
   the autocompletion
   - in particular, do/may not parse
@@ -34,13 +34,13 @@ As of now, I foresee 4 modules
     - `fn` bodies,
     - `impl` bodies (depends if relevant or not)
     - non-`pub` items if looking for an external file
-  - there is already a good-enough-to-start version with the [`SearchIter`](https://github.com/tafia/naive_complete/blob/master/src/main.rs#L39-L44)
+  - there is already a good-enough-to-start version with the `SearchIter`
   - can probably be extended to work with any stream as it is based on a
   `BufReader` ... so there is no need to *write* a temporary file
-- *Function* Parser iterator:
+- [*Function* Parser iterator](https://github.com/tafia/naive_complete/blob/master/src/func_parser.rs):
   - there will be at maximum ONE function body parsed (the one currently in scope)
   - provide an iterator over fn variables
-  - not implemented
+  - basic implementation, which use a private file reader for the moment
 - File Searcher iterator
   - iterate over possible files in scope
   - defined by `use` statements, `extern crate` (including prelude) ...
