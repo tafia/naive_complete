@@ -11,7 +11,7 @@ mod file_parser;
 mod func_parser;
 
 use file_parser::{SearchIter, Searcheable};
-use func_parser::{SearchFnIter, Request};
+use func_parser::{FnParser, FnIter, Scope};
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct Token {
@@ -42,17 +42,34 @@ fn main() {
 
     match &*args[0] {
         "prefix" => {
-        	if args.len() != 3 {        		
-	            println!("Wrong number of arguments for {}", args[0]);
-	            print_usage();
-        	} else {
-        		let iter = SearchFnIter::open(&args[2], 0, 
-        			args[1].parse().unwrap()).unwrap();
-        		println!("request: {:?}", iter.request());
-        		for it in iter {
-        			println!("fn item {:?}", it);
-        		}
-        	}
+            if args.len() != 3 {        		
+                println!("Wrong number of arguments for {}", args[0]);
+                print_usage();
+            } else {
+            	let pos = args[1].parse::<usize>().unwrap();
+                let parser = FnParser::new(&args[2], 0, pos).unwrap();
+                let name = match parser.scope() {
+                    Scope::Path(segments) => {
+                        if segments.len() == 0 { 
+                            println!("cannot find scope!");
+                            return;
+                        }
+                        segments[0]
+                    }
+                    Scope::Fn(segments) => {
+                        if segments.len() == 0 { 
+                            println!("cannot find scope!");
+                            return;
+                        }
+                        segments[0]
+                    }
+                    Scope::Word(word) => word,
+                };
+                println!("scope: {:?}", name);
+                for it in parser.iter(&name.name, name.pos) {
+                    println!("fn item {:?}", it);
+                }
+            }
         },
         // "complete" => complete(&match_fn),
         // // "complete-with-snippet" => complete(&match_with_snippet_fn),
