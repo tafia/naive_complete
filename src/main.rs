@@ -54,14 +54,14 @@ fn main() {
                             println!("cannot find scope!");
                             return;
                         }
-                        segments[0]
+                        segments[0].clone()
                     }
                     Scope::Fn(segments) => {
                         if segments.len() == 0 { 
                             println!("cannot find scope!");
                             return;
                         }
-                        segments[0]
+                        segments[0].clone()
                     }
                     Scope::Word(word) => word,
                 };

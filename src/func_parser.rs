@@ -1,10 +1,7 @@
 use std::io::{Read, Error};
 use std::fs::File;
-//use regex::Regex;
 
 use super::Token;
-
-//static REGEX_DECL: Regex = regex!(r"(?:let\s|\()\s*(\w+)(?:\s*:\s*(\w+))?");
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Scope {
@@ -48,7 +45,7 @@ impl FnParser {
     	let iword = self.buf.rfind(|c: char| match c {
     		' ' | '\r' | '\n' | '\t' | '(' | '{' | '<' | '[' => true,
     		_ => false
-    	}).unwrap_or(0);
+    	}).map(|n| n+1).unwrap_or(0);
 
         if ifn > ipath {
             if ifn > iword {
@@ -69,7 +66,7 @@ impl FnParser {
         }
     }
     
-    pub fn iter(&'a self, name: &'a str, end: usize) -> FnIter<'a> {
+    pub fn iter<'a>(&'a self, name: &'a str, end: usize) -> FnIter<'a> {
     	let buf_end = if end < self.start { 0 } else { end - self.start };
     	FnIter {
     	   inner: &self,
@@ -79,7 +76,7 @@ impl FnParser {
     }
 }
 
-struct FnIter<'a> {
+pub struct FnIter<'a> {
     inner: &'a FnParser,
     name: &'a str,
     buf_end: usize
