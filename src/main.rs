@@ -9,9 +9,9 @@ extern crate env_logger;
 
 mod file_parser;
 mod func_parser;
+mod brain;
 
-use file_parser::{SearchIter, Searcheable};
-use func_parser::{FnParser, FnIter, Scope};
+use brain::prefix;
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct Token {
@@ -20,7 +20,7 @@ pub struct Token {
 }
 
 #[cfg(not(test))]
-fn print_usage() {
+pub fn print_usage() {
     let program = &std::env::args().next().unwrap();
     println!("usage: {} complete linenum charnum fname", program);
     println!("or:    {} find-definition pos fname", program);
@@ -41,36 +41,7 @@ fn main() {
     }
 
     match &*args[0] {
-        "prefix" => {
-            if args.len() != 3 {        		
-                println!("Wrong number of arguments for {}", args[0]);
-                print_usage();
-            } else {
-            	let pos = args[1].parse::<usize>().unwrap();
-                let parser = FnParser::new(&args[2], 0, pos).unwrap();
-                let name = match parser.scope() {
-                    Scope::Path(segments) => {
-                        if segments.len() == 0 { 
-                            println!("cannot find scope!");
-                            return;
-                        }
-                        segments[0].clone()
-                    }
-                    Scope::Fn(segments) => {
-                        if segments.len() == 0 { 
-                            println!("cannot find scope!");
-                            return;
-                        }
-                        segments[0].clone()
-                    }
-                    Scope::Word(word) => word,
-                };
-                println!("scope: {:?}", name);
-                for it in parser.iter(&name.name, name.pos) {
-                    println!("fn item {:?}", it);
-                }
-            }
-        },
+        "prefix" => prefix(&args),
         // "complete" => complete(&match_fn),
         // // "complete-with-snippet" => complete(&match_with_snippet_fn),
         // "find-definition" => find_definition(),
