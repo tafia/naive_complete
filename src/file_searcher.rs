@@ -11,7 +11,7 @@ struct Module {
 
 impl Module {
 	fn new(parent: &str, name: &str) -> Module {
-		// See racer/matchers#211
+		// See racer/matchers#242
 		Module {
 			name: name.to_string(),
 			path: parent.to_string() + name		// totally wrong
@@ -22,12 +22,12 @@ impl Module {
 pub struct Crate {
 	root: Module,
 	crates: Vec<Crate>,
-	modules: Vec<Module> 
+	modules: Vec<Module>
 }
 
 impl Crate {
 	pub fn new(parent: &str, name: &str) -> Crate {
-		// See racer/matchers#159
+		// See racer/matchers#188
 		Crate {
 			root: Module::new(parent, name),
 			crates: Vec::new(),
