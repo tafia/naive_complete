@@ -1,5 +1,4 @@
-#![feature(plugin)]
-#![feature(io)]
+#![feature(plugin, io)]
 #![plugin(regex_macros)]
 extern crate regex;
 
@@ -9,6 +8,7 @@ extern crate env_logger;
 
 mod file_parser;
 mod func_parser;
+mod file_searcher;
 mod brain;
 
 use brain::prefix;

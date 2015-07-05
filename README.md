@@ -21,11 +21,11 @@ Eventually it'll at least provide benchmarks to compare with.
 ## Architecture (planned)
 
 As of now, I foresee 4 modules
-- the brain
+- [the brain](https://github.com/tafia/naive_complete/blob/master/src/brain.rs)
   - work as an Arena and store/digest outputs from the 3 other modules
   - as lazy as possible, responsible for type-check/search
   - should probably allow any file to be parsed once only
-  - not implemented
+  - largely not implemented
 - [*File* Parser iterator](https://github.com/tafia/naive_complete/blob/master/src/file_parser.rs):
   - take a file path as input and provides an iterator over items relevant for
   the autocompletion
@@ -41,15 +41,15 @@ As of now, I foresee 4 modules
   - there will be at maximum ONE function body parsed (the one currently in scope)
   - provide an iterator over fn variables
   - basic implementation, which use a private file reader for the moment
-- File Searcher iterator
-  - iterate over possible files in scope
+- [File Searcher iterator](https://github.com/tafia/naive_complete/blob/master/src/file_searcher.rs):
+  - iterate over possible files in crates
   - defined by `use` statements, `extern crate` (including prelude) ...
   - can discover from cargo files
   - not implemented
 
 ## Todo
 
-- Implement the 3 missing modules
+- Implement basic workable version
 - Add tests + eventually benchmarks
 - Add additional properties to skip some parsing in file parser (local,
   static fns in particular)
