@@ -5,6 +5,7 @@ extern crate regex;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate toml;
 
 mod file_parser;
 mod func_parser;

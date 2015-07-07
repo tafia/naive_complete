@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::fs::PathExt;
 
+mod cargo;
+
 enum Use {
     Fn(Vec<String>),
     Object(Vec<String>),
@@ -46,11 +48,12 @@ pub struct Crate {
 impl Crate {
     pub fn new(parent: &Path, name: &str) -> Option<Crate> {
         // See racer/matchers#188
-        Module::new(parent, name).map(|m| Crate {
-            root: m,
-            crates: Vec::new(),
-            modules: Vec::new()
-        })
+        cargo::get_crate_file(name, parent).and_then(|krate|
+            Module::new(&krate, name).map(|m| Crate {
+                root: m,
+                crates: Vec::new(),
+                modules: Vec::new()
+            }))
     }
 
     pub fn add_crate(&mut self, name: &str) {
