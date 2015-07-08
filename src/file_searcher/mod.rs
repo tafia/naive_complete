@@ -63,11 +63,13 @@ impl Crate {
     }
     
     fn get_rust_crate(name: &str) -> Option<PathBuf> {
-        std::env::var("RUST_SRC_PATH")
-        .and_then(|rust_src| (&rust_src).split(PATH_SEP).into_iter()
-        .flat_map(|srcpath| ["lib{}", "{}"]
-            .into_iter()
-            .map(|p| Path::new(srcpath).join(format!(p, name)).join("lib.rs")))
-        .find(|filepath| filepath.exists()))
+        std::env::var("RUST_SRC_PATH").ok()
+        .and_then(|rust_src| {
+            let names = vec![format!("lib{}", name), name.to_string()];
+            rust_src.split(PATH_SEP).into_iter()
+            .flat_map(|s| names.iter().cloned().map(move |n| 
+                Path::new(s).join(n).join("lib.rs")).into_iter())
+            .find(|filepath| filepath.exists())
+        })
     }
 }
