@@ -3,11 +3,10 @@ use std::fs::PathExt;
 
 mod cargo;
 
-enum Use {
-    Fn(Vec<String>),
-    Object(Vec<String>),
-    Blob(Vec<String>)
-}
+#[cfg(unix)]
+pub const PATH_SEP: char = ':';
+#[cfg(windows)]
+pub const PATH_SEP: char = ';';
 
 struct Module {
     name: String,
@@ -15,28 +14,21 @@ struct Module {
 }
 
 impl Module {
+
     fn new(parent: &Path, name: &str) -> Option<Module> {
-
-        let path = if parent.is_file() {
-            parent.parent().unwrap()
-        } else { parent };
-
-        // try <name.rs>
-        for p in [format!("{}.rs", name),
-                  format!("{}/mod.rs", name),
-                  format!("{}/{}.rs", name, name),
-                  format!("{}/lib.rs", name)].into_iter() {
-            let mod_path = path.join(p);
-            if mod_path.exists() {
-                return Some(Module {
-                    name: name.to_string(),
-                    path: mod_path
-                })
-            }
-        }
-
-        None
+    
+        let path = if parent.is_file() { parent.parent().unwrap() } else { parent };
+        
+        ["{}.rs", "{}/mod.rs", "{0}/{0}.rs", "{}/lib.rs"]
+        .into_iter().map(|p| path.join(format!(p, name)))
+        .find(|mod_path| mod_path.exists())
+        .map(|mod_path| Module {
+            name: name.to_string(),
+            path: mod_path 
+        })
+        
     }
+    
 }
 
 pub struct Crate {
@@ -46,9 +38,11 @@ pub struct Crate {
 }
 
 impl Crate {
+
     pub fn new(parent: &Path, name: &str) -> Option<Crate> {
-        // See racer/matchers#188
-        cargo::get_crate_file(name, parent).and_then(|krate|
+        cargo::get_crate_file(name, parent)
+        .or(Crate::get_rust_crate(name))
+        .and_then(|krate|
             Module::new(&krate, name).map(|m| Crate {
                 root: m,
                 crates: Vec::new(),
@@ -67,8 +61,13 @@ impl Crate {
             self.modules.push(m);
         }
     }
-
-    pub fn find_use_file(&self, file: &str, use_stmt: &str) -> String {
-        String::new()
+    
+    fn get_rust_crate(name: &str) -> Option<PathBuf> {
+        std::env::var("RUST_SRC_PATH")
+        .and_then(|rust_src| (&rust_src).split(PATH_SEP).into_iter()
+        .flat_map(|srcpath| ["lib{}", "{}"]
+            .into_iter()
+            .map(|p| Path::new(srcpath).join(format!(p, name)).join("lib.rs")))
+        .find(|filepath| filepath.exists()))
     }
 }
