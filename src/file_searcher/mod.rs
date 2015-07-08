@@ -17,10 +17,15 @@ impl Module {
 
     fn new(parent: &Path, name: &str) -> Option<Module> {
     
-        let path = if parent.is_file() { parent.parent().unwrap() } else { parent };
+        let path = 
+            if parent.is_file() { parent.parent().unwrap() } 
+            else { parent };
         
-        ["{}.rs", "{}/mod.rs", "{0}/{0}.rs", "{}/lib.rs"]
-        .into_iter().map(|p| path.join(format!(p, name)))
+        [format!("{}.rs", name), 
+         format!("{}/mod.rs", name), 
+         format!("{0}/{0}.rs", name), 
+         format!("{}/lib.rs", name)]
+        .into_iter().map(|p| path.join(p))
         .find(|mod_path| mod_path.exists())
         .map(|mod_path| Module {
             name: name.to_string(),
