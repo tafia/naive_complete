@@ -21,12 +21,12 @@ Eventually it'll at least provide benchmarks to compare with.
 ## Architecture (planned)
 
 As of now, I foresee 4 modules
-- [the brain](https://github.com/tafia/naive_complete/blob/master/src/brain.rs)
+- [main](https://github.com/tafia/naive_complete/blob/master/src/main.rs)
   - work as an Arena and store/digest outputs from the 3 other modules
   - as lazy as possible, responsible for type-check/search
   - should probably allow any file to be parsed once only
   - largely not implemented
-- [*File* Parser iterator](https://github.com/tafia/naive_complete/blob/master/src/file_parser.rs):
+- [*File* Parser iterator](https://github.com/tafia/naive_complete/blob/master/src/file_parser):
   - take a file path as input and provides an iterator over items relevant for
   the autocompletion
   - in particular, do/may not parse
@@ -45,7 +45,8 @@ As of now, I foresee 4 modules
   - iterate over possible files in crates
   - defined by `use` statements, `extern crate` (including prelude) ...
   - can discover from cargo files
-  - not implemented
+  - basic implementation
+  - relies on [racer cargo file](https://github.com/tafia/naive_complete/blob/master/src/file_parser/cargo.rs)( to search in dependencies
 
 ## Todo
 
@@ -53,3 +54,5 @@ As of now, I foresee 4 modules
 - Add tests + eventually benchmarks
 - Add additional properties to skip some parsing in file parser (local,
   static fns in particular)
+- Perhaps use Cow in Token
+- Check BufReader (see this [SO](https://www.reddit.com/r/rust/comments/3cgaui/trying_to_find_why_python_is_twice_as_fast_as/))
