@@ -105,19 +105,19 @@ fn find_definition(file: &str, pos: usize) {
             Scope::Word(ref word) => word
         }.clone();
 
-        if let Some(t) = search_word(&first_word) {
+        if let Some(t) = search_word(&first_word, &innerScope) {
             println!("Found word: {:?}", t);
         }
     }
 }
 
-fn search_word(word: &Token)
--> Option<Token> {
+fn search_word(word: &Token, fn_parser: &FnParser) -> Option<Token> {
+    fn_parser.iter(&word.name, word.pos).find(|t| t.name.starts_with(&word.name))
     // search_iter.iter(&word.name, word.pos).next().or(search_iter.find(|&s| match *s {
     //     Searcheable::Fn(Token {name: name, ..}, _)      |
     //     Searcheable::StructEnum(Token {name: name, ..}) |
     //     Searcheable::Const(Token {name: name, ..}, _)   => name.starts_with(word),
     //     _ => false
     // }))
-    None
+    // None
 }
