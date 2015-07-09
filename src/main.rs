@@ -16,8 +16,8 @@ use file_parser::{SearchIter, Searcheable};
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct Token {
-    pub name: String,      // match name
-    pub pos: usize         // position in the file
+    pub name: String,   // match name
+    pub pos: usize      // position in the file
 }
 
 fn main() {
@@ -25,17 +25,16 @@ fn main() {
     env_logger::init().unwrap();
 
     let args = std::env::args().collect::<Vec<_>>();
-
     if args.len() == 1 {
         print_usage(&args[0]);
         std::process::exit(1);
     }
 
     match &*args[1] {
-        "prefix" => prefix(&args),
-        // "complete" => complete(&match_fn),
-        // // "complete-with-snippet" => complete(&match_with_snippet_fn),
-        "find-definition" => find_definition(&args),
+        "find-definition" => {
+            let (pos, file) = parse_pos_and_file(&args);
+            find_definition(&file, pos)
+        },
         "help" => print_usage(&args[0]),
         cmd => {
             println!("Sorry, I didn't understand command {}", cmd);
@@ -47,90 +46,75 @@ fn main() {
 
 #[cfg(not(test))]
 fn print_usage(program: &str) {
-    println!("usage: {} complete linenum charnum fname", program);
+    println!("usage: {} complete pos fname", program);
     println!("or:    {} find-definition pos fname", program);
     println!("or:    {} complete fullyqualifiedname   (e.g. std::io::)", program);
     println!("or:    {} prefix pos fname", program);
     println!("or replace complete with complete-with-snippet for more detailed completions.");
 }
 
-// prefix pos fname
-fn prefix(args: &Vec<String>) {
-	 if args.len() != 4 {
-        println!("Cannot run 'prefix', expect 3 arguments, found {}", args.len());
+fn parse_pos_and_file(args: &Vec<String>) -> Option<(usize, String)> {
+    if args.len() != 4 {
         print_usage(&args[0]);
-    } else {
-    	let pos = args[2].parse::<usize>().unwrap();
-        let parser = FnParser::new(&args[3], 0, pos).unwrap();
-        let name = match parser.scope() {
-            Scope::Path(segments) => {
-                if segments.len() == 0 {
-                    println!("cannot find scope!");
-                    return;
-                }
-                segments[0].clone()
-            }
-            Scope::Fn(segments) => {
-                if segments.len() == 0 {
-                    println!("cannot find scope!");
-                    return;
-                }
-                segments[0].clone()
-            }
-            Scope::Word(word) => word,
-        };
-        println!("scope: {:?}", name);
-        for it in parser.iter(&name.name, name.pos) {
-            println!("fn item {:?}", it);
-        }
+        return None;
     }
+    let file = &args[3];
+    args[2].parse::<usize>().ok().map(|pos| (pos, file))
 }
 
 // find-definition pos fname
-fn find_definition(args: &Vec<String>) {
+fn find_definition(file: &str, pos: usize) {
 
-    if args.len() != 4 {
-        print_usage(&args[0]);
-        return;
-    }
-
-    let pos = args[2].parse::<usize>().unwrap();
-        // .expect(&format!("Cannot parse {} as usize", &args[2]));
-    let file = &args[3];
-
+    // search for all file entries up to requested `pos`, and save the offset
     let iter = SearchIter::open(file).unwrap();
-        // .expect(&format!("Cannot open file {}", file));
-
-    let mut entries = iter.into_iter().take_while(|s|{
+    
+    // get the scope search (Searcheable item)
+    let mut offset = 0;
+    let searcheable = iter.cloned().find(|s| {
         debug!("entries until pos: {:#?}", s);
-        match *s {
+        let end = match *s {
             Searcheable::Fn(_, Token {pos: p, ..})      |
             Searcheable::Impl(_, Token {pos: p, ..}, _) |
             Searcheable::StructEnum(Token {pos: p, ..}) |
             Searcheable::Const(_, Token {pos: p, ..})   |
-            Searcheable::Trait(Token {pos: p, ..})      => p < pos,
-            Searcheable::Use(_, ref v) => v.len() > 0 && v[0].pos < pos
+            Searcheable::Trait(Token {pos: p, ..})      => p,
+            Searcheable::Use(_, ref v) => v.len() > 0 { v[0].pos } else { 0 }
         }
-    }).collect::<Vec<_>>();
+        if end > pos { return false; }
+        offset = end;
+        true
+    });
+    
+    // get the fn parser for the Searcheable item
+    let mut innerScope = FnParser::new(file, offset, pos);
+    debug!("root searchable:\n{:#?}", innerScope);
+    
+    let scope = innerScope.scope();
+    debug!("root scope:\n{:?}", scope);
+    
+    let first_word = match scope {
+        Scope::Path(segments) |
+        Scope::Fn(segments)   => {
+            if segments.len() == 0 {
+                println!("cannot find scope!");
+                return;
+            }
+            segments[0]
+        }
+        Scope::Word(word) => word
+    }.clone();
+    
+    search_word(&first_word, &innerScope.iter(first_word, pos), &searcheable);
+    
+}
 
-    // match args.len() {
-    //     0 => print_usage(),
-    //     1 => {
-    //         let iter = SearchIter::open(&args[0]).unwrap();
-    //         for v in iter {
-    //             println!("match: {:?}", v);
-    //         }
-    //     },
-    //     2 => {
-    //         let mut iter = SearchIter::open(&args[0]).unwrap();
-    //         let m = iter.find(|ref m| {
-    //             if let Searcheable::Fn(ref name, _) = **m {
-    //                 if name.name == args[1] { return true; }
-    //             }
-    //             false
-    //         });
-    //         println!("match: {:?}", m);
-    //     },
-    //     _ => println!("too many arguments")
-    // }
+fn search_word(word: &str, iter: mut FnIter, searcheable: &Option<Searcheable>
+    search_iter: &mut SearchIter) -> Option<Token> 
+{
+    iter.next().or(search_iter.find(|&s| match *s {
+        Searcheable::Fn(Token {name: name, ..}, _)      |
+        Searcheable::StructEnum(Token {name: name, ..}) |
+        Searcheable::Const(Token {name: name, ..}, _)   => name.starts_with(word),
+        _ => false
+    })
 }
