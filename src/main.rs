@@ -33,7 +33,9 @@ fn main() {
     match &*args[1] {
         "find-definition" => {
             if let Some((pos, file)) = parse_pos_and_file(&args) {
-                find_definition(&file, pos)
+                if let Some(t) = find_definition(&file, pos) {
+                    println!("Found defition: {:#?}", t);
+                }
             }
         },
         "help" => print_usage(&args[0]),
@@ -64,7 +66,7 @@ fn parse_pos_and_file(args: &Vec<String>) -> Option<(usize, &str)> {
 }
 
 // find-definition pos fname
-fn find_definition(file: &str, pos: usize) {
+fn find_definition(file: &str, pos: usize) -> Option<Token> {
 
     // search for all file entries up to requested `pos`, and save the offset
     let mut iter = SearchIter::open(file).unwrap();
@@ -87,7 +89,7 @@ fn find_definition(file: &str, pos: usize) {
     });
 
     // get the fn parser for the Searcheable item
-    if let Ok(mut innerScope) = FnParser::new(file, offset, pos) {
+    FnParser::new(file, offset, pos).ok().and_then(|mut innerScope| {
         debug!("root searchable:\n{:#?}", innerScope);
 
         let scope = innerScope.scope();
@@ -95,29 +97,27 @@ fn find_definition(file: &str, pos: usize) {
 
         let first_word = match scope {
             Scope::Path(ref segments) |
-            Scope::Fn(ref segments)   => {
-                if segments.len() == 0 {
-                    println!("cannot find scope!");
-                    return;
-                }
-                &segments[0]
-            }
+            Scope::Fn(ref segments)   => &segments[0],
             Scope::Word(ref word) => word
         }.clone();
 
-        if let Some(t) = search_word(&first_word, &innerScope) {
-            println!("Found word: {:?}", t);
-        }
-    }
+        find_def_in_fn(&first_word, &innerScope)
+        .or(find_def_in_file(&first_word, &iter))
+    })
+
 }
 
-fn search_word(word: &Token, fn_parser: &FnParser) -> Option<Token> {
+fn find_def_in_fn(word: &Token, fn_parser: &FnParser) -> Option<Token> {
     fn_parser.iter(&word.name, word.pos).find(|t| t.name.starts_with(&word.name))
-    // search_iter.iter(&word.name, word.pos).next().or(search_iter.find(|&s| match *s {
-    //     Searcheable::Fn(Token {name: name, ..}, _)      |
-    //     Searcheable::StructEnum(Token {name: name, ..}) |
-    //     Searcheable::Const(Token {name: name, ..}, _)   => name.starts_with(word),
-    //     _ => false
-    // }))
-    // None
+}
+
+fn find_def_in_file(word: &Token, file_parser: &SearchIter) -> Option<Token> {
+    file_parser.cloned().map(move |s| match s {
+        Searcheable::Fn(t, _)       |
+        Searcheable::Impl(_, t, _)  |
+        Searcheable::StructEnum(t)|
+        Searcheable::Const(t, _)       |
+        Searcheable::Trait(t)       => t,
+        Searcheable::Use(_, v) => v[0]
+    }).find(|t| t.name.starts_with(&word.name))
 }
