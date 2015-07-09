@@ -16,24 +16,24 @@ struct Module {
 impl Module {
 
     fn new(parent: &Path, name: &str) -> Option<Module> {
-    
-        let path = 
-            if parent.is_file() { parent.parent().unwrap() } 
+
+        let path =
+            if parent.is_file() { parent.parent().unwrap() }
             else { parent };
-        
-        [format!("{}.rs", name), 
-         format!("{}/mod.rs", name), 
-         format!("{0}/{0}.rs", name), 
+
+        [format!("{}.rs", name),
+         format!("{}/mod.rs", name),
+         format!("{0}/{0}.rs", name),
          format!("{}/lib.rs", name)]
         .into_iter().map(|p| path.join(p))
         .find(|mod_path| mod_path.exists())
         .map(|mod_path| Module {
             name: name.to_string(),
-            path: mod_path 
+            path: mod_path
         })
-        
+
     }
-    
+
 }
 
 pub struct Crate {
@@ -66,13 +66,13 @@ impl Crate {
             self.modules.push(m);
         }
     }
-    
+
     fn get_rust_crate(name: &str) -> Option<PathBuf> {
-        std::env::var("RUST_SRC_PATH").ok()
+        ::std::env::var("RUST_SRC_PATH").ok()
         .and_then(|rust_src| {
             let names = vec![format!("lib{}", name), name.to_string()];
             rust_src.split(PATH_SEP).into_iter()
-            .flat_map(|s| names.iter().cloned().map(move |n| 
+            .flat_map(|s| names.iter().cloned().map(move |n|
                 Path::new(s).join(n).join("lib.rs")).into_iter())
             .find(|filepath| filepath.exists())
         })

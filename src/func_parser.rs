@@ -10,6 +10,7 @@ pub enum Scope {
     Word(Token)
 }
 
+#[derive(Debug)]
 pub struct FnParser {
     start: usize,
     buf: String
@@ -18,7 +19,7 @@ pub struct FnParser {
 impl FnParser {
 
     pub fn new(path: &str, offset: usize, pos: usize) ->  Result<FnParser, Error> {
-        debug!("creating FnParser with on {}, {}", path, pos);
+        debug!("creating FnParser file: {}, offset: {}, pos: {}", path, offset, pos);
         let file = try!(File::open(path));
         let buf = file.chars().into_iter()
                   .skip(offset)
@@ -30,7 +31,7 @@ impl FnParser {
                       c.is_numeric() ||
                       c == '_')
                   .map(|(_, c)| c).collect::<String>();
-		
+
         debug!("buffer: {}", &buf);
         Ok(FnParser {
             start: offset,
@@ -65,7 +66,7 @@ impl FnParser {
             }
         }
     }
-    
+
     pub fn iter<'a>(&'a self, name: &'a str, end: usize) -> FnIter<'a> {
     	let buf_end = if end < self.start { 0 } else { end - self.start };
     	FnIter {
