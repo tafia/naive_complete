@@ -5,7 +5,15 @@ use std::str::from_utf8;
 
 use super::Token;
 
-static REGEX_START: Regex = regex!(r"^\s*(?:(?P<unused>$|//|/\*|#\[)|(?P<fn>(?:pub\s+)?(?:unsafe\s+)?fn)|(?P<use>use\s)|(?P<struct>(?:pub\s+)?(?:enum|struct)\s)|(?P<impl>impl)|(?P<const>(?:pub\s+)?(?:const|static))|(?P<trait>(?:pub\s+)?trait))");
+static REGEX_START: Regex = regex!("^\\s*(?:\
+                                    (?P<unused>$|//|/\\*|#\\[)|\
+                                    (?P<fn>(?:pub\\s+)?(?:unsafe\\s+)?fn)|\
+                                    (?P<use>use\\s)|\
+                                    (?P<struct>(?:pub\\s+)?(?:enum|struct)\\s)|\
+                                    (?P<impl>impl)|\
+                                    (?P<const>(?:pub\\s+)?(?:const|static))|\
+                                    (?P<trait>(?:pub\\s+)?trait)\
+                                    )");
 static REGEX_FN: Regex = regex!(r"(?:pub\s+)?(?:unsafe\s+)?fn\s+(\w+)(?:.*->\s*(\w+))?");
 static REGEX_USE: Regex = regex!(r"use\s+((?:\w+::)*)\{?((?:\s*(?:\*|\w+)\s*,?)+)\}?\s*;");
 static REGEX_STRUCT: Regex = regex!(r"(?:pub\s+)?(?:enum|struct)\s+(\w+).*(;|\{)");
