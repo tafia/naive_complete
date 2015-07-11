@@ -1,7 +1,18 @@
 use std::io::{Read, Error};
 use std::fs::File;
 
+use regex::Regex;
+
 use super::Token;
+
+static REGEX_DEF: Regex = regex!("^\\s*(?:\
+                                    (?P<let>(?:if\\s+)?let\\s+)|\
+                                    (?P<fn>(?:pub\\s+)?(?:unsafe\\s+)?fn)|\
+                                    (?P<use>use\\s)
+                                    )");
+
+
+// (?P<let>(?:if\\s+)?let\\s+((?:\\w|\\(|\\)|\\s|_)+)(?:\\s+:\\s+(\\w+))?\\s+=)\
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Scope {
@@ -41,12 +52,10 @@ impl FnParser {
 
     pub fn scope(&self) -> Scope {
 
-    	let ifn = self.buf.rfind('.').unwrap_or(0);
-    	let ipath = self.buf.rfind(':').unwrap_or(0);
-    	let iword = self.buf.rfind(|c: char| match c {
-    		' ' | '\r' | '\n' | '\t' | '(' | '{' | '<' | '[' => true,
-    		_ => false
-    	}).map(|n| n+1).unwrap_or(0);
+        let ifn = self.buf.rfind('.').map(|n| n+1).unwrap_or(0);
+        let ipath = self.buf.rfind(':').map(|n| n+1).unwrap_or(0);
+        let iword = self.buf.rfind(|c: char| !(c.is_alphabetic() || c.is_numeric() || c == '_'))
+            .map(|n| n+1).unwrap_or(0);
 
         if ifn > ipath {
             if ifn > iword {
@@ -68,12 +77,12 @@ impl FnParser {
     }
 
     pub fn iter<'a>(&'a self, name: &'a str, end: usize) -> FnIter<'a> {
-    	let buf_end = if end < self.start { 0 } else { end - self.start };
-    	FnIter {
-    	   inner: &self,
-    	   name: name,
-    	   buf_end: buf_end
-    	}
+        let buf_end = if end < self.start { 0 } else { end - self.start };
+        FnIter {
+           inner: &self,
+           name: name,
+           buf_end: buf_end
+        }
     }
 }
 
@@ -87,12 +96,31 @@ impl<'a> Iterator for FnIter<'a> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Token> {
-
-    	// TODO: make a better search !
-    	// TODO: extend until end of found word
-    	self.inner.buf[..self.buf_end].rfind(self.name).map(|n| {
-    	    self.buf_end = n;
-    	    Token { name: self.name.to_string(), pos: self.inner.start + self.buf_end }
-    	})
+        loop {
+            // TODO: extend until end of found word
+            match self.inner.buf[..self.buf_end].rfind(self.name).map(|n| {
+                self.buf_end = n;
+                Token { name: self.name.to_string(), pos: self.inner.start + self.buf_end }
+            }) {
+                Some(t) => {
+                    let start = self.inner.buf[..self.buf_end].rfind('\n')
+                        .map(|n| n+1).unwrap_or(0);
+                    let end = self.inner.buf[self.buf_end..].find('\n').unwrap_or(0);
+                    let line = &self.inner.buf[start..self.buf_end+end];
+                    debug!("found fn token: {:?} as line:\n{}", t, line);
+                    if let Some(caps) = REGEX_DEF.captures(line) {
+                        if let Some((name, _)) = caps.iter_named().find(|&(_, it)| it.is_some()) {
+                            match name {
+                                "let" | "fn" | "use" => return Some(t),
+                                _                    => debug!("{:?}", name)
+                            }
+                        }
+                    }
+                    debug!("can't find regex match");
+                    self.buf_end = start;
+                },
+                None => return None
+            }
+        }
     }
 }

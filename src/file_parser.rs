@@ -1,7 +1,8 @@
 use std::io::{BufRead, BufReader, Result};
 use std::fs::File;
-use regex::Regex;
 use std::str::from_utf8;
+
+use regex::Regex;
 
 use super::Token;
 
