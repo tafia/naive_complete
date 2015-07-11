@@ -297,14 +297,14 @@ impl Iterator for SearchIter {
             if let Some(caps) = REGEX_START.captures(&self.buf.clone()) {
                 if let Some((name, _)) = caps.iter_named().find(|&(_, it)| it.is_some()) {
                     match name {
-                        "use"         => return self.match_use(),
-                        "struct"     => return self.match_struct_or_enum(),
-                        "impl"         => return self.match_impl(),
-                        "fn"         => return self.match_fn(),
-                        "const"        => return self.match_const(),
-                        "trait"        => return self.match_trait(),
-                        "unused"     => debug!("unused"),
-                        _             => debug!("{:?}", name)
+                        "use"    => return self.match_use(),
+                        "struct" => return self.match_struct_or_enum(),
+                        "impl"   => return self.match_impl(),
+                        "fn"     => return self.match_fn(),
+                        "const"  => return self.match_const(),
+                        "trait"  => return self.match_trait(),
+                        "unused" => debug!("unused"),
+                        _        => debug!("{:?}", name)
                     }
                 }
             }
