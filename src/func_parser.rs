@@ -3,7 +3,7 @@ use std::fs::File;
 
 use regex::Regex;
 
-use super::Token;
+use manager::Token;
 
 static REGEX_DEF: Regex = regex!("^\\s*(?:\
                                   (?P<let>(?:if\\s+)?let\\s+)|\
