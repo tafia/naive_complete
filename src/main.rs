@@ -1,4 +1,4 @@
-#![feature(plugin, io, path_ext)]
+#![feature(plugin, io, path_ext, append)]
 #![plugin(regex_macros)]
 extern crate regex;
 

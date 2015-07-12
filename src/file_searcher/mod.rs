@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::fs::PathExt;
 
+use file_parser::{Searcheable, SearchIter};
+
 mod cargo;
 
 #[cfg(unix)]
@@ -10,7 +12,9 @@ pub const PATH_SEP: char = ';';
 
 struct Module {
     name: String,
-    path: PathBuf
+    path: PathBuf,
+    items: Vec<Searcheable>,
+    iter: Option<SearchIter>
 }
 
 impl Module {
@@ -29,9 +33,34 @@ impl Module {
         .find(|mod_path| mod_path.exists())
         .map(|mod_path| Module {
             name: name.to_string(),
-            path: mod_path
+            path: mod_path,
+            items: Vec::new(),
+            iter: None
         })
 
+    }
+
+    pub fn find<F>(&mut self, f: F) -> Option<Searcheable>
+    where F: Fn(&Searcheable) -> bool {
+        // First search in the buffer
+        self.items.iter().find(|s| f(*s)).map(|s| s.clone())
+        .or({
+            // create file parser
+            if self.iter.is_none() {
+                match SearchIter::open(self.path.to_str().unwrap()) {
+                    Ok(iter) => self.iter = Some(iter),
+                    Err(_) => return None
+                };
+            }
+
+            let mut items = Vec::new();
+            let result = (*self.iter.as_mut().unwrap()).find(|s| {
+                items.push(s.clone());
+                f(s)
+            });
+            self.items.append(&mut items);
+            result
+        })
     }
 
 }
