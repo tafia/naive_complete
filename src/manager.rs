@@ -1,5 +1,6 @@
 use func_parser::{FnParser, Scope};
 use file_searcher::{Module, ModuleIter};
+use file_parser::Searcheable;
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct Token {
@@ -14,7 +15,7 @@ pub fn find_definition(file: &str, pos: usize) -> Option<Token> {
 
         let mut mod_iter = module.iter();
 
-        // get the scope search (Searcheable item)
+        // search for fn start (offset)
         let mut offset = 0;
         let _ = mod_iter.find(|s| {
             let end = s.get_pos();
@@ -40,8 +41,11 @@ pub fn find_definition(file: &str, pos: usize) -> Option<Token> {
                 return None
             }
 
+            // smaller to bigger scope searches
             find_def_in_fn(&first_word, &inner_scope)
             .or(find_def_in_file(&first_word, &mut mod_iter))
+            // ... need to search for external files
+            .or(find_def_in_use(&first_word, &mut mod_iter))
         })
 
     })
@@ -63,4 +67,17 @@ fn find_def_in_file(word: &Token, mod_iter: &mut ModuleIter) -> Option<Token> {
             None
         }
     }).next()
+}
+
+fn find_def_in_use(word: &Token, mod_iter: &mut ModuleIter) -> Option<Token> {
+    mod_iter.reset();
+    mod_iter.into_iter().filter_map(|s|
+        match s {
+            Searcheable::Use(path, name) => {
+                // let file = path.push()
+                None
+            }
+            _ => None
+        }
+    ).next()
 }

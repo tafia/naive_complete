@@ -1,11 +1,14 @@
 use std::path::{Path, PathBuf};
-use std::fs::PathExt;
+use std::fs::{PathExt, read_dir};
 use std::vec::IntoIter;
 use std::slice::Iter;
 
+use manager::Token;
 use file_parser::{Searcheable, SearchIter};
 
 mod cargo;
+
+use cargo::find_cargo_tomlfile;
 
 #[cfg(unix)]
 pub const PATH_SEP: char = ':';
@@ -66,7 +69,7 @@ pub struct ModuleIter {
     index: usize
 }
 
-impl ModuleIter {    
+impl ModuleIter {
     pub fn reset(&mut self) {
         self.index = 0;
     }
@@ -96,6 +99,44 @@ pub struct Crate {
 }
 
 impl Crate {
+
+    pub fn root_module(module: &Module, iter: &ModuleIter) -> Option<Crate> {
+        // need to find the file with the "main" fn as the crate root
+        iter.reset();
+        if iter.any(|s| match s {
+            Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
+            _ => false
+        }) {
+            Some(Crate {
+                root: module,
+                crates: Vec::new(),
+                modules: Vec::new()
+            })
+        } else {
+            let mut file = find_cargo_tomlfile(module.path);
+            file.pop();
+            file.push("src");
+            if f.exists() {
+                read_dir(f).FilterMap(|f| {
+                    match f.extension {
+                        Some("rs") => {
+                            if f == file { None }
+                            else {
+                                let f_module = Module::root(f.to_str().unwrap());
+                                f_module.iter.find(|s| match s {
+                                    Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
+                                    _ => false
+                                })
+                            }
+                        },
+                        _ => None
+                    }
+                }).next()
+            } else {
+                None
+            }
+        }
+    }
 
     pub fn new(parent: &Path, name: &str) -> Option<Crate> {
         cargo::get_crate_file(name, parent)

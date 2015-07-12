@@ -14,9 +14,9 @@ macro_rules! otry {
 
 // converts errors into None
 macro_rules! otry2 {
-    ($e:expr) => (match $e { Ok(e) => e, Err(e) => { 
-        error!("ERROR!: {:?} {} {}", e, file!(), line!()); 
-        return None 
+    ($e:expr) => (match $e { Ok(e) => e, Err(e) => {
+        error!("ERROR!: {:?} {} {}", e, file!(), line!());
+        return None
     } })
 }
 
@@ -30,7 +30,7 @@ fn read_to_string(file: &Path) -> Option<String> {
 fn find_src_via_lockfile(kratename: &str, cargofile: &Path) -> Option<PathBuf> {
 
     if !cargofile.exists() { return None; }
-	    
+
     let string = otry!(read_to_string(cargofile));
     let mut parser = toml::Parser::new(&string);
     let lock_table = parser.parse().unwrap();
@@ -75,10 +75,10 @@ fn get_cargo_rootdir() -> Option<PathBuf> {
         let d = PathBuf::from(x);
         return if d.exists() { Some(d) } else { None };
     }
-    
+
     let mut d = otry!(env::home_dir());
-    
-    // try multirust first, since people with multirust installed will often still 
+
+    // try multirust first, since people with multirust installed will often still
     // have an old .cargo directory lying around
     d.push(".multirust");
     d.push("default");
@@ -115,7 +115,7 @@ fn get_versioned_cratefile(kratename: &str, version: &str) -> Option<PathBuf> {
             if let Some(path) = reader
                                 .map(|entry| entry.unwrap().path())
                                 .find(|path| path.to_str().unwrap().starts_with(start_name)) {
-                d = path.clone();                        
+                d = path.clone();
             } else {
                 return None;
             }
@@ -123,7 +123,7 @@ fn get_versioned_cratefile(kratename: &str, version: &str) -> Option<PathBuf> {
     } else {
         d.push(kratename.to_string() + "-" + &version);
     }
-    
+
     d.push("src");
     debug!("crate path {:?}",d);
 
@@ -137,7 +137,7 @@ fn get_versioned_cratefile(kratename: &str, version: &str) -> Option<PathBuf> {
         d.push("lib.rs");
     }
     debug!("crate path with lib.rs {:?}",d);
-    
+
     if File::open(&d).is_ok() { Some(d) } else { None }
  }
 
@@ -260,7 +260,7 @@ fn getstr(t: &toml::Table, k: &str) -> Option<String> {
     }
 }
 
-fn find_cargo_tomlfile(currentfile: &Path) -> Option<PathBuf> {
+pub fn find_cargo_tomlfile(currentfile: &Path) -> Option<PathBuf> {
     let mut f = currentfile.to_path_buf();
     loop {
         f.push("Cargo.toml");
@@ -276,7 +276,7 @@ pub fn get_crate_file(kratename: &str, from_path: &Path) -> Option<PathBuf> {
         let mut lockfile = tomlfile.clone();
         lockfile.pop();
         lockfile.push("Cargo.lock");
-        
+
         find_src_via_lockfile(kratename, &lockfile)
         // oh, no luck with the lockfile. Try the tomlfile
         .or(find_src_via_tomlfile(kratename, &tomlfile))
