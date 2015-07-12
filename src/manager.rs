@@ -1,5 +1,5 @@
 use func_parser::{FnParser, Scope};
-use file_parser::{SearchIter};
+use file_searcher::{Module, ModuleIter};
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct Token {
@@ -10,37 +10,40 @@ pub struct Token {
 // find-definition pos fname
 pub fn find_definition(file: &str, pos: usize) -> Option<Token> {
 
-    // search for all file entries up to requested `pos`, and save the offset
-    let mut iter = SearchIter::open(file).unwrap();
+    Module::root(file).and_then(|module| {
 
-    // get the scope search (Searcheable item)
-    let mut offset = 0;
-    let searcheable = iter.find(|s| {
-        let end = s.get_pos();
-        if end > pos { return true; }
-        offset = end;
-        false
-    });
+        let mut mod_iter = module.iter();
 
-    // get the fn parser for the Searcheable item
-    FnParser::new(file, offset, pos).ok().and_then(|inner_scope| {
+        // get the scope search (Searcheable item)
+        let mut offset = 0;
+        let _ = mod_iter.find(|s| {
+            let end = s.get_pos();
+            if end > pos { return true; }
+            offset = end;
+            false
+        });
 
-        let scope = inner_scope.scope();
-        debug!("root scope:\n{:?}", scope);
+        // get the fn parser for the Searcheable item
+        FnParser::new(file, offset, pos).ok().and_then(|inner_scope| {
 
-        let first_word = match scope {
-            Scope::Path(ref segments) |
-            Scope::Fn(ref segments)   => &segments[0],
-            Scope::Word(ref word) => word
-        }.clone();
+            let scope = inner_scope.scope();
+            debug!("root scope:\n{:?}", scope);
 
-        if first_word.name.len() == 0 {
-            debug!("No word to be found");
-            return None
-        }
+            let first_word = match scope {
+                Scope::Path(ref segments) |
+                Scope::Fn(ref segments)   => &segments[0],
+                Scope::Word(ref word) => word
+            }.clone();
 
-        find_def_in_fn(&first_word, &inner_scope)
-        .or(find_def_in_file(&first_word, &mut SearchIter::open(file).unwrap()))
+            if first_word.name.len() == 0 {
+                debug!("No word to be found");
+                return None
+            }
+
+            find_def_in_fn(&first_word, &inner_scope)
+            .or(find_def_in_file(&first_word, &mut mod_iter))
+        })
+
     })
 
 }
@@ -49,8 +52,9 @@ fn find_def_in_fn(word: &Token, fn_parser: &FnParser) -> Option<Token> {
     fn_parser.iter(&word.name, word.pos).find(|t| t.name.starts_with(&word.name))
 }
 
-fn find_def_in_file(word: &Token, file_parser: &mut SearchIter) -> Option<Token> {
-    file_parser.into_iter()
+fn find_def_in_file(word: &Token, mod_iter: &mut ModuleIter) -> Option<Token> {
+    mod_iter.reset();
+    mod_iter.into_iter()
     .filter_map(|s| {
         let t = s.get_main_token();
         if t.name.starts_with(&word.name) {
