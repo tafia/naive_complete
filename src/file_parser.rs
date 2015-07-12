@@ -1,9 +1,9 @@
 use std::io::{BufRead, BufReader, Result};
 use std::fs::File;
 use std::str::from_utf8;
+use std::vec::IntoIter;
 
 use regex::Regex;
-
 use manager::Token;
 
 static REGEX_START: Regex = regex!("^\\s*(?:\
@@ -22,22 +22,48 @@ static REGEX_IMPL: Regex = regex!(r"impl(?:\s*<.*>)?\s+(?:(\w+).*\sfor\s+)?(&?\w
 static REGEX_CONST: Regex = regex!(r"(?:pub\s+)?(?:static|const)\s+(\w+)\s*:.*(\w+)");
 static REGEX_TRAIT: Regex = regex!(r"(?:pub\s+)?trait\s+(\w+)");
 
-
 #[derive(Debug,Clone,PartialEq)]
 pub enum Searcheable {
     Fn(Token, Token),                            // (name, return type)
     Impl(Token, Token, Vec<(Token, Token)>),    // trait, struct, fns
     StructEnum(Token),
-    Use(Vec<String>, Vec<Token>),                // (path, uses)
+    Use(Token, Token),                // (path, use)
     Const(Token, Token),                        // name, type
     Trait(Token)                                // name
+}
+
+impl Searcheable {
+
+    pub fn get_pos(&self) -> usize {
+        match *self {
+            Searcheable::Fn(Token {pos: p, ..}, _)      |
+            Searcheable::Impl(_, Token {pos: p, ..}, _) |
+            Searcheable::StructEnum(Token {pos: p, ..}) |
+            Searcheable::Const(_, Token {pos: p, ..})   |
+            Searcheable::Trait(Token {pos: p, ..})      |
+            Searcheable::Use(_, Token {pos: p, ..})        => p
+        }
+    }
+
+    pub fn get_main_token(&self) -> &Token {
+        match *self {
+            Searcheable::Fn(ref t, _)      |
+            Searcheable::Impl(_, ref t, _) |
+            Searcheable::StructEnum(ref t) |
+            Searcheable::Const(ref t, _)   |
+            Searcheable::Trait(ref t)      |
+            Searcheable::Use(_, ref t)        => t
+        }
+    }
+
 }
 
 pub struct SearchIter {
     file: BufReader<File>,
     pos: usize,
     skip: Option<(u8, u8)>,
-    buf: String
+    buf: String,
+    iter_use: Option<IntoIter<Searcheable>>
 }
 
 impl SearchIter {
@@ -48,7 +74,8 @@ impl SearchIter {
             pos: 0,
             file: BufReader::new(file),
             buf: String::new(),
-            skip: None
+            skip: None,
+            iter_use: None
         })
     }
 
@@ -145,21 +172,23 @@ impl SearchIter {
         if !self.extend_until(b';') { return None; }
 
         let m = if let Some(caps) = REGEX_USE.captures(&self.buf) {
-            let members_str = caps.at(1).unwrap();
-            let members = if members_str.len() > 2 {
-                members_str[..members_str.len()-2].split("::")
-                .map(|s| s.to_string()).collect::<Vec<_>>()
-            } else { Vec::new() };
-            debug!("members: {:?}", members);
 
-            let (start, end) = caps.pos(2).unwrap();
             let mut pos = self.pos - self.buf.len();
+            let member_token = Token { name: caps.at(1).unwrap().to_string(), pos: pos };
+            let (start, end) = caps.pos(2).unwrap();
             pos += start;
-            Some(Searcheable::Use(members,
-                    self.buf[start..end].split(",").map(|s| Token{
-                    name:s.trim().to_string(),
+
+            let mut iter = self.buf[start..end].split(',')
+                .map(|s| Searcheable::Use(member_token.clone(), Token {
+                    name: s.trim().to_string(),
                     pos: pos
-                }).collect()))
+                })).collect::<Vec<_>>().into_iter();
+
+            let first_use = iter.next();
+            self.iter_use = Some(iter);
+
+            first_use
+
         } else {
             None
         };
@@ -290,6 +319,11 @@ impl Iterator for SearchIter {
     fn next(&mut self) -> Option<Searcheable> {
 
         loop {
+
+            if let Some(iter) = self.iter_use.as_mut() {
+                return (*iter).next();
+            }
+
             if !self.next_line() { return None; }
 
             if let Some(caps) = REGEX_START.captures(&self.buf.clone()) {
