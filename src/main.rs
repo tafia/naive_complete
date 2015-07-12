@@ -74,9 +74,8 @@ fn find_definition(file: &str, pos: usize) -> Option<Token> {
     // get the scope search (Searcheable item)
     let mut offset = 0;
     let searcheable = iter.find(|s| {
-        debug!("entries until pos: {:?}", s);
         let end = match *s {
-            Searcheable::Fn(_, Token {pos: p, ..})      |
+            Searcheable::Fn(Token {pos: p, ..}, _)      |
             Searcheable::Impl(_, Token {pos: p, ..}, _) |
             Searcheable::StructEnum(Token {pos: p, ..}) |
             Searcheable::Const(_, Token {pos: p, ..})   |
@@ -90,7 +89,6 @@ fn find_definition(file: &str, pos: usize) -> Option<Token> {
 
     // get the fn parser for the Searcheable item
     FnParser::new(file, offset, pos).ok().and_then(|inner_scope| {
-        debug!("root searchable:\n{:#?}", inner_scope);
 
         let scope = inner_scope.scope();
         debug!("root scope:\n{:?}", scope);
@@ -102,7 +100,7 @@ fn find_definition(file: &str, pos: usize) -> Option<Token> {
         }.clone();
 
         find_def_in_fn(&first_word, &inner_scope)
-        .or(find_def_in_file(&first_word, &mut iter))
+        .or(find_def_in_file(&first_word, &mut SearchIter::open(file).unwrap()))
     })
 
 }

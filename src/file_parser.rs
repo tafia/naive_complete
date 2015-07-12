@@ -89,8 +89,6 @@ impl SearchIter {
 
     // consumes the file until end byte is found
     fn consume(&mut self, start: u8, end: u8) {
-
-        debug!("consuming: ({}, {})", start, end);
         let mut level = 1;
         while level > 0 {
             let mut buf = Vec::new();
@@ -103,7 +101,7 @@ impl SearchIter {
                 }
             }
         }
-        debug!("consumed, pos is now at {}", self.pos);
+        debug!("consumed until {}", self.pos);
     }
 
     fn match_fn(&mut self) -> Option<Searcheable> {
@@ -185,7 +183,6 @@ impl SearchIter {
             let pos = self.pos - self.buf.len() + start;
             match caps.at(2) {
                 Some("{") => {
-                    debug!("struct has a {{: {}", self.buf);
                     if !self.buf.contains('}') { self.skip = Some((b'{', b'}')); }
                 }
                 _ => {} // TODO: manage each alternatives
@@ -304,7 +301,7 @@ impl Iterator for SearchIter {
                         "fn"     => return self.match_fn(),
                         "const"  => return self.match_const(),
                         "trait"  => return self.match_trait(),
-                        "unused" => debug!("unused"),
+                        "unused" => debug!("unused ({})", self.pos),
                         _        => debug!("{:?}", name)
                     }
                 }

@@ -6,13 +6,13 @@ use regex::Regex;
 use super::Token;
 
 static REGEX_DEF: Regex = regex!("^\\s*(?:\
-                                    (?P<let>(?:if\\s+)?let\\s+)|\
-                                    (?P<fn>(?:pub\\s+)?(?:unsafe\\s+)?fn)|\
-                                    (?P<use>use\\s)
-                                    )");
-
-
-// (?P<let>(?:if\\s+)?let\\s+((?:\\w|\\(|\\)|\\s|_)+)(?:\\s+:\\s+(\\w+))?\\s+=)\
+                                  (?P<let>(?:if\\s+)?let\\s+)|\
+                                  (?P<use>use\\s)
+                                  )");
+static REGEX_ARG: Regex = regex!("(?:\
+                                  (?P<fn>\\((\\s*(\\w+)\\s*:\\s*&?\\w+\\s*,?)+\\))|\
+                                  (?P<closure>\\|(\\s*(\\w+)\\s*(?::\\s*&?\\w+\\s*),?)+\\|)\
+                                  )");
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Scope {
@@ -103,24 +103,19 @@ impl<'a> Iterator for FnIter<'a> {
                 Token { name: self.name.to_string(), pos: self.inner.start + self.buf_end }
             }) {
                 Some(t) => {
-                    let start = self.inner.buf[..self.buf_end].rfind('\n')
-                        .map(|n| n+1).unwrap_or(0);
-                    let end = self.inner.buf[self.buf_end..].find('\n').unwrap_or(0);
-                    let line = &self.inner.buf[start..self.buf_end+end];
-                    debug!("found fn token: {:?} as line:\n{}", t, line);
-                    if let Some(caps) = REGEX_DEF.captures(line) {
-                        if let Some((name, _)) = caps.iter_named().find(|&(_, it)| it.is_some()) {
-                            match name {
-                                "let" | "fn" | "use" => return Some(t),
-                                _                    => debug!("{:?}", name)
-                            }
-                        }
-                    }
-                    debug!("can't find regex match");
+                    let start = self.inner.buf[..self.buf_end].rfind('\n').map(|n|n+1).unwrap_or(0);
+                    let end = self.buf_end + self.inner.buf[self.buf_end..].find('\n').unwrap_or(0);
+                    let line = &self.inner.buf[start..end];
+                    debug!("search for token: {:?} in line:\n{}", t, line);
+                    if REGEX_DEF.is_match(line) || REGEX_ARG.is_match(line) { return Some(t) }
                     self.buf_end = start;
                 },
-                None => return None
+                None => {
+                    debug!("can't find matching name: {}", self.name);
+                    return None;
+                }
             }
         }
     }
+
 }
