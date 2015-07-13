@@ -57,22 +57,14 @@ impl FnParser {
         let iword = self.buf.rfind(|c: char| !(c.is_alphabetic() || c.is_numeric() || c == '_'))
             .map(|n| n+1).unwrap_or(0);
 
-        if ifn > ipath {
-            if ifn > iword {
-                Scope::Fn(self.buf[iword..].split('.')
-                    .map(|s| Token { name: s.to_string(), pos: self.start + ifn })
-                    .collect())
-            } else {
-                Scope::Word(Token { name: self.buf[iword..].to_string(), pos: self.start + iword })
-            }
-        } else {
-            if ipath > iword {
-                Scope::Path(self.buf[iword..].split("::")
-                    .map(|s| Token { name: s.to_string(), pos: self.start + ipath })
-                    .collect())
-            } else {
-                Scope::Word(Token { name: self.buf[iword..].to_string(), pos: self.start + iword })
-            }
+        match (ifn > ipath, ifn > iword, ipath > iword) {
+          (true, true, _)  => Scope::Fn(self.buf[iword..].split('.')
+                              .map(|s| Token { name: s.to_string(), pos: self.start + ifn })
+                              .collect()),
+          (false, _, true) => Scope::Path(self.buf[iword..].split("::")
+                              .map(|s| Token { name: s.to_string(), pos: self.start + ipath })
+                              .collect()),
+          _ => Scope::Word(Token { name: self.buf[iword..].to_string(), pos: self.start + iword })
         }
     }
 
