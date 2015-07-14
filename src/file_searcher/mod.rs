@@ -8,13 +8,14 @@ use file_parser::{Searcheable, SearchIter};
 
 mod cargo;
 
-use cargo::find_cargo_tomlfile;
+use self::cargo::find_cargo_tomlfile;
 
 #[cfg(unix)]
 pub const PATH_SEP: char = ':';
 #[cfg(windows)]
 pub const PATH_SEP: char = ';';
 
+#[derive(Clone)]
 pub struct Module {
     name: String,
     path: PathBuf
@@ -108,33 +109,34 @@ impl Crate {
             _ => false
         }) {
             Some(Crate {
-                root: module,
+                root: (*module).clone(),
                 crates: Vec::new(),
                 modules: Vec::new()
             })
         } else {
-            let mut file = find_cargo_tomlfile(module.path);
-            file.pop();
-            file.push("src");
-            if f.exists() {
-                read_dir(f).FilterMap(|f| {
-                    match f.extension {
-                        Some("rs") => {
-                            if f == file { None }
-                            else {
-                                let f_module = Module::root(f.to_str().unwrap());
-                                f_module.iter.find(|s| match s {
-                                    Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
-                                    _ => false
-                                })
-                            }
-                        },
-                        _ => None
-                    }
-                }).next()
-            } else {
-                None
-            }
+            find_cargo_tomlfile(&*module.path).and_then(|file|{
+                file.pop();
+                file.push("src");
+                if file.exists() {
+                    read_dir(file).FilterMap(|f| {
+                        match f.extension {
+                            Some("rs") => {
+                                if f == file { None }
+                                else {
+                                    let f_module = Module::root(f.to_str().unwrap());
+                                    f_module.iter.find(|s| match s {
+                                        Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
+                                        _ => false
+                                    })
+                                }
+                            },
+                            _ => None
+                        }
+                    }).next()
+                }else {
+                    None
+                }
+            })
         }
     }
 
