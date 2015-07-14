@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::fs::{PathExt, read_dir};
 use std::vec::IntoIter;
 use std::slice::Iter;
+use std::io::{Result, Error, ErrorKind};
 
 use manager::Token;
 use file_parser::{Searcheable, SearchIter};
@@ -101,42 +102,45 @@ pub struct Crate {
 
 impl Crate {
 
-    pub fn root_module(module: &Module, iter: &ModuleIter) -> Option<Crate> {
+    pub fn root_module(module: &Module, iter: &ModuleIter) -> Result<Crate> {
         // need to find the file with the "main" fn as the crate root
         iter.reset();
         if iter.any(|s| match s {
             Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
             _ => false
         }) {
-            Some(Crate {
+            Ok(Crate {
                 root: (*module).clone(),
                 crates: Vec::new(),
                 modules: Vec::new()
             })
         } else {
-            find_cargo_tomlfile(&*module.path).and_then(|file|{
+            if let Some(file) = find_cargo_tomlfile(&*module.path) {
                 file.pop();
                 file.push("src");
                 if file.exists() {
-                    read_dir(file).FilterMap(|f| {
-                        match f.extension {
-                            Some("rs") => {
-                                if f == file { None }
-                                else {
-                                    let f_module = Module::root(f.to_str().unwrap());
-                                    f_module.iter.find(|s| match s {
-                                        Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
-                                        _ => false
-                                    })
-                                }
-                            },
-                            _ => None
-                        }
-                    }).next()
+                    for f in try!(read_dir(file)) {
+						let path = try!(f).path();
+						if path.extension().unwrap() == "rs" && 
+							!path.starts_with(&*module.path) {
+							let f_module = Module::root(path.to_str().unwrap());
+							if f_module.iter.any(|s| match s {
+								Searcheable::Fn(Token {name: name, ..}, _) => name == "main",
+								_ => false
+							}) return Ok(Crate {
+								root: f_module,
+								crates: Vec::new(),
+								modules: Vec::new()
+							})
+						}
+					}
+					Err(ErrorKind::Other, "Cannot find rust file with main fn")
                 }else {
-                    None
+                    Err(ErrorKind::Other, "Cannot find src directory")
                 }
-            })
+            } else {
+				Err(ErrorKind::Other, "Cannot find cargo toml file")
+			}
         }
     }
 
